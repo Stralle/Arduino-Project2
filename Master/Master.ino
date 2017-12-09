@@ -10,7 +10,7 @@ String secondNum;         //Second number parsed as sstring
 long minimumNumber = 0;   //Minimal number for given range
 long maximumNumber = 0;   //Maxmial number for given range
 long partNum = 0;         //Partial number for the range
-int segment = 0;   //Number of prime numbers that every slave should return
+long segment = 0;   //Number of prime numbers that every slave should return
 
 long primeNumbers[200];   //Total prime numbers that can be held in the moment
 byte index = 0;            //Index of current prime numbers in array
@@ -48,16 +48,16 @@ void parseString() {
 // Count the range for numbers
 void countRange() {
 //  Serial.println("Count range");
-  int i = minimumNumber;
-  int range = 150;
+  long i = minimumNumber;
+  byte range = 180;
   if (i > 20000) {
+    range = 150;
+  }
+  if (i > 50000) {
     range = 100;
   }
-  else if (i > 50000) {
-    range = 50;
-  }
   i++;
-  while (pi(i) - pi(minimumNumber) < 150 && i < maximumNumber) {
+  while (pi(i) - pi(minimumNumber) < range && i < maximumNumber) {
     i++;
   }
   partNum = i;
@@ -140,18 +140,20 @@ void loop() {
         Serial.println(slaves[i]);
         Serial.print("\t");
         Serial.println(temp);
+        Serial.print("\t");
+        Serial.println(segment);
         Wire.beginTransmission(slaves[i]); // transmit to device #i
         Wire.write(temp.c_str());
         Wire.endTransmission(); // stop transmitting
         Serial.println("End transmission");
-        delay(10); //100
+//        delay(10); //100
       }
       allEmpty = false;
     }
     else {
       Serial.println("Everything is finished");
       stringParsed = false;
-      delay(10); //100
+//      delay(10); //100
     }
   }
   else if (stringParsed) {
@@ -167,13 +169,13 @@ void loop() {
     }
     for (int i = 0; i < slaveNum; i++) {
       Wire.requestFrom(slaves[i], 32); // request 32 bytes from slave device
-            Serial.print("Receive from slave:");
-            Serial.println(slaves[i]);
+//            Serial.print("Receive from slave:");
+//            Serial.println(slaves[i]);
       char c;
       if (Wire.available()) {
         c = Wire.read();
-                Serial.print("\tStatus: ");
-                Serial.println(c);
+//                Serial.print("\tStatus: ");
+//                Serial.println(c);
         //        Serial.println("\t-------------");
       }
       if (c == '0') {           //Ovde bi potencijalno trebalo da ide kradja poslova - ako je slejv prazan, tj zavrsio je, onda da se uzme pola preostalog posla slejva koji ima najvise
@@ -223,7 +225,7 @@ void loop() {
       }
       bool t = c == '0' ? true : false;
       allEmpty = allEmpty && t;
-      delay(5);
+//      delay(5);
       //      Serial.print("\t\t");
       //      Serial.println(allEmpty);
     }
@@ -236,7 +238,7 @@ void loop() {
     //    printArray();
     //    memset(primeNumbers, 0, sizeof(primeNumbers));
     //    index = 0;
-    delay(20); //200
+//    delay(20); //200
   }
   else {
     Serial.println("Enter 'PRIME X Y' to start finding prime numbers");
