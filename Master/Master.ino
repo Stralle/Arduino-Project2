@@ -1,6 +1,6 @@
 #include <Wire.h>
 
-byte slaves[] = {8};                             //All slaves
+byte slaves[] = {8, 9};                             //All slaves
 byte slaveNum = sizeof(slaves) / sizeof(byte);    //Number of slaves
 
 String inputString;       //String that users inputs

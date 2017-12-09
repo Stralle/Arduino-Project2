@@ -13,100 +13,179 @@ long y = -1;                                                //End of the range
 
 int slaveStatus = EMPTY;                                    //Current slave status
 
-volatile int primes[100];                                            //All prime numbers that can be stored by slave
-volatile int counter = 0;                                            //How many prime numbers are actually stored
+volatile long primes[200];                                            //All prime numbers that can be stored by slave
+volatile int counter = 0;                                             //How many prime numbers are actually stored
 volatile int sentPrimes = 0;
-int index = 0;                                              //Current number
+long index = 0;                                              //Current number
 int totalPrimes = 0;
+double percent = 1;                                           //LONG
+double percentedNumber = 0;                                   //LONG
 
-volatile int ledStrength = 0;
-//
-//bool up = true;
+//800 - sekund
+//1600 - 2 sekunde ciklus
+//3200 - 4 sekunde ciklus?
+volatile byte ledStrength = 0;
+volatile byte ledSpeed = 8;
+volatile byte ledCnt = 0;
+volatile bool up = true;
 
+void clamp() {
+  if (ledStrength > 100) {
+    ledStrength = 100;
+  }
+  if (ledStrength < 0) {
+    ledStrength = 0;
+  }
+}
 
 void setup() {
-  Wire.begin(9); // join i2c bus with address #9
-//  pinMode(LED, OUTPUT);
+  Wire.begin(9); // join i2c bus with address #8
+  pinMode(LED, OUTPUT);
   Wire.onRequest(requestEvent); // register event
   Wire.onReceive(receiveEvent); // register event
   Serial.begin(9600);
   Serial.println("Started slave on port 9.");
-  
-//  noInterrupts();               // Gasimo prekide
-//
-//  TCCR1A = 0;                   // Stavljamo TCCR1A na 0
-//  TCCR1B = 0;                   // Stavljamo TCCR1B na 0
-//  TCNT1  = 0;                   // Counter na 0
 
+  cli();               // Gasimo prekide
+  //
+  TCCR1A = 0;                   // Stavljamo TCCR1A na 0
+  TCCR1B = 0;                   // Stavljamo TCCR1B na 0
+  TCNT1  = 0;                   // Counter na 0
 
-//  8 sekundi ciklus - paljenje + gasenje (0%)
-//  6 sekundi ciklus - paljenje + gasenje (30%)
-//  4 sekunde ciklus - paljenje + gasenje (50%)
-//  2 sekunde ciklus - paljenje + gasenje (70%)
-//  2Hz - 500ms (2 puta u sekundi)
-//  4Hz - 1000ms(1 put u sekundi)
-//  20Hz - 50ms (20 puta u sekundi)
-//  200Hz - 5ms (200 puta u sekundi)
-//  MaxLedStrength = 100 -> za 200Hz je diodi potrebna jedna sekunda da se upali i ugasi
-  
-//  OCR1A = 10000;                // 16000000/(200Hz*8) //-1999?
-//  TCCR1B |= (1 << WGM12);
-//  TCCR1B |= (1 << CS11);        // Prescaler na 8
-//  TIMSK1 |= (1 << OCIE1A);
-//
-//  interrupts();
+  //  8 sekundi ciklus - paljenje + gasenje (0%)
+  //  6 sekundi ciklus - paljenje + gasenje (30%)
+  //  4 sekunde ciklus - paljenje + gasenje (50%)
+  //  2 sekunde ciklus - paljenje + gasenje (70%)
+  //  2Hz - 500ms (2 puta u sekundi)
+  //  4Hz - 1000ms(1 put u sekundi)
+  //  20Hz - 50ms (20 puta u sekundi)
+  //  200Hz - 5ms (200 puta u sekundi)
+  //  MaxLedStrength = 100 -> za 200Hz je diodi potrebna jedna sekunda da se upali i ugasi
+
+  OCR1A = 9999;                // 16000000/(200Hz*8)
+  TCCR1B |= (1 << WGM12);
+  TCCR1B |= (1 << CS11);        // Prescaler na 8
+  TIMSK1 |= (1 << OCIE1A);
+  //
+  sei();
 
 }
 
-//ISR(TIMER1_COMPA_vect) {
-//  if (led_counter > led_granica)
-//    led_counter = led_granica;
-//  if (led_counter == led_granica) {
-//    if (brightness > 101)
-//      dir = -1;
-//    if (brightness < 1)
-//      dir = 1;
-//    brightness += dir;
-//    analogWrite(LED_PIN, brightness);
-//    led_counter = 0;
-//  }
-//  led_counter ++;
-//}
+ISR(TIMER1_COMPA_vect) {
+
+  if (slaveStatus == WORK) {
+//    Serial.println();
+//    Serial.print("Led CNT: ");
+//    Serial.println(ledCnt);
+    //        Serial.print("Led Speed: ");
+    //        Serial.println(ledSpeed);
+    //    Serial.print("Led strength: ");
+    //    Serial.println(ledStrength);
+    //    Serial.print("Up: ");
+    //    Serial.println(up);
+    if (ledCnt > ledSpeed)
+      ledCnt = ledSpeed;
+    if (ledCnt == ledSpeed) {
+      ledCnt = 0;
+      if (ledStrength >= 100) {
+        up = false;
+        ledStrength = 100;
+      }
+      if (ledStrength <= 0) {
+        up = true;
+        ledStrength = 0;
+      }
+      if (up)
+        ledStrength++;
+      else
+        ledStrength--;
+      clamp();
+      //    Serial.print("|");
+      //    Serial.print(ledStrength);
+      //    Serial.println("|");
+      analogWrite(LED, ledStrength);
+    }
+    ledCnt++;
+  }
+  else {
+    ledStrength = 0;
+    analogWrite(LED, ledStrength);
+  }
+}
 
 void loop() {
-
-//  if(up) {
-//    ledStrength++;
-//  }
-//  else {
-//    ledStrength--;
-//  }
-//  analogWrite(LED, ledStrength);
-//  if(ledStrength == 100) {
-//    up = false;
-//  }
-//  else if(ledStrength == 0) {
-//    up = true;
-//  }
-  
   if (slaveStatus == WORK) {
     //    Serial.print("WORK ");
+    percentedNumber++;
+    //    Percentage handling
+    percent = percentedNumber / (y - x + 1);                //Prvo pomnozi pa podeli - kada je LONG
+    percent *= 100;
+    if (percent < 1) {
+      percent = 1;
+    }
+    if (percent > 100) {
+      percent = 100;
+    }
+
+    //    Serial.println();
+    //    Serial.print("Percented number: ");
+    //    Serial.println(percentedNumber);
+    //    int temp = percent;
+    //    Serial.print("Percentage: ");
+    //    Serial.println(temp);
+
+    if (percent >= 10.00 && percent <= 10.10 || percent >= 20.00 && percent <= 20.10 || percent >= 30.00 && percent <= 30.10
+        || percent >= 40.00 && percent <= 40.10 || percent >= 50.00 && percent <= 50.10 ||
+        percent >= 60.00 && percent <= 60.10 || percent >= 70.00 && percent <= 70.10 ||
+        percent >= 80.00 && percent <= 80.10 || percent >= 90.00 && percent <= 90.10 || percent == 100.00) {
+      if (percent > 70) {
+        ledSpeed = 2;
+      }
+      else if (percent > 50) {
+        ledSpeed = 4;
+      }
+      else if (percent > 30) {
+        ledSpeed = 6;
+      }
+      else {
+        ledSpeed = 8;
+      }
+      Serial.print("Percentage: ");
+      Serial.println((int)percent);
+      Serial.print("Led speed: ");
+      Serial.println(ledSpeed);
+    }
+    else {
+      delay(5);
+      //      Serial.println((int)percent);
+    }
+    //    Serial.println();
+
     if (isPrime(index) && counter < 199 && index <= y) {
       primes[counter++] = index;
       totalPrimes++;
       //      Serial.println(index);
     }
-    else if (counter == 199) {
+    else if (counter == 99) { //199
       slaveStatus = FULL;
+      //      totalPrimes = 0;
+      percentedNumber = 0;
+      ledSpeed = 8;
     }
-//    if (index > y + 100) {
-//      slaveStatus = EMPTY;
-//    }
+
+    //    if (index > y + 100) {
+    //      slaveStatus = EMPTY;
+    //    }
     if (sentPrimes == totalPrimes && sentPrimes != 0 && index > y) {
       slaveStatus = EMPTY;
+      percentedNumber = 0;
+      percent = 0;
+      ledSpeed = 8;
     }
     if (index == y) {
       Serial.println("FINISHED");
+      //      percentedNumber = 0;
+      //      percent = 0;
     }
     index++;
   }
@@ -114,7 +193,8 @@ void loop() {
     slaveStatus = EMPTY;
     memset(primes, 0, sizeof(primes));
   }
-  delay(20); //20
+
+  //  delay(20); //20
 }
 
 // function that executes whenever data is requested by master
@@ -122,9 +202,9 @@ void loop() {
 void requestEvent() {
   String message = String(slaveStatus);
   Wire.write(message.c_str());
-  Serial.println("REQUEST");
-  Serial.print("\t");
-  Serial.println(message);
+  //  Serial.println("REQUEST");
+  //  Serial.print("\t");
+  //  Serial.println(message);
 
   if (slaveStatus == EMPTY) {
 
@@ -132,22 +212,22 @@ void requestEvent() {
   else if (slaveStatus == WORK) {
     byte byteArray[4];
 
-    Serial.print("Counter: ");
-    Serial.println(counter);
+    //    Serial.print("Counter: ");
+    //    Serial.println(counter);
     byteArray[0] = (counter >> 8) & 0xFF;
     byteArray[1] = counter & 0xFF;
 
     Wire.write(byteArray[0]);
     Wire.write(byteArray[1]);
 
-    Serial.print("sent primes");
-    Serial.println(sentPrimes);
+    //    Serial.print("sent primes");
+    //    Serial.println(sentPrimes);
     if (counter <= 6) {
       for (int i = 0; i < counter; i++) {
-        Serial.print("Prime: ");
-        Serial.print(i);
-        Serial.print(": ");
-        Serial.println(primes[i]);
+        //        Serial.print("Prime: ");
+        //        Serial.print(i);
+        //        Serial.print(": ");
+        //        Serial.println(primes[i]);
 
         memset(byteArray, 0, sizeof(byteArray));
         byteArray[0] = (primes[i] >> 24) & 0xFF;
@@ -168,8 +248,8 @@ void requestEvent() {
   else if (slaveStatus == FULL) {
 
   }
-  Serial.print("Total primes: ");
-  Serial.println(totalPrimes - 1);
+  //  Serial.print("Total primes: ");
+  //  Serial.println(totalPrimes - 1);
 }
 
 void receiveEvent(int howMany) {
@@ -200,16 +280,16 @@ void receiveEvent(int howMany) {
 
 }
 
-bool isPrime(int i) {
+bool isPrime(long i) {
   bool res = true;
-  if(i == 1) {
+  if (i == 1) {
     return !res;
   }
-  if(i == 2) {
+  if (i == 2) {
     return res;
   }
-  for (int x = 2; x <= sqrt(i) + 1; x++) {
-    if (i % x == 0) {
+  for (long k = 2; k <= sqrt(i) + 1; k++) {
+    if (i % k == 0) {
       res = false;
       break;
     }
