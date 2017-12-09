@@ -18,7 +18,7 @@ byte index = 0;            //Index of current prime numbers in array
 bool allEmpty = true;     //Are all slaves empty?
 bool stringParsed = false;//is string Parsed?
 
-void setup() {
+void setup() { 
   Wire.begin();           // join i2c bus (address optional for master)
   Serial.begin(9600);     // start serial for output
   Serial.println("Master is started.");

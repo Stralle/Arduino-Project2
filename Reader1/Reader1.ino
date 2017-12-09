@@ -14,18 +14,29 @@ long y = -1;                                                //End of the range
 int slaveStatus = EMPTY;                                    //Current slave status
 
 volatile long primes[200];                                            //All prime numbers that can be stored by slave
-volatile int counter = 0;                                            //How many prime numbers are actually stored
+volatile int counter = 0;                                             //How many prime numbers are actually stored
 volatile int sentPrimes = 0;
 long index = 0;                                              //Current number
 int totalPrimes = 0;
 double percent = 1;                                           //LONG
 double percentedNumber = 0;                                   //LONG
 
-volatile int ledStrength = 0;
+//800 - sekund
+//1600 - 2 sekunde ciklus
+//3200 - 4 sekunde ciklus?
+volatile byte ledStrength = 0;
 volatile byte ledSpeed = 8;
 volatile byte ledCnt = 0;
 volatile bool up = true;
 
+void clamp() {
+  if (ledStrength > 100) {
+    ledStrength = 100;
+  }
+  if (ledStrength < 0) {
+    ledStrength = 0;
+  }
+}
 
 void setup() {
   Wire.begin(8); // join i2c bus with address #8
@@ -35,11 +46,11 @@ void setup() {
   Serial.begin(9600);
   Serial.println("Started slave on port 8.");
 
-//  cli();               // Gasimo prekide
-//
-//  TCCR1A = 0;                   // Stavljamo TCCR1A na 0
-//  TCCR1B = 0;                   // Stavljamo TCCR1B na 0
-//  TCNT1  = 0;                   // Counter na 0
+  cli();               // Gasimo prekide
+  //
+  TCCR1A = 0;                   // Stavljamo TCCR1A na 0
+  TCCR1B = 0;                   // Stavljamo TCCR1B na 0
+  TCNT1  = 0;                   // Counter na 0
 
   //  8 sekundi ciklus - paljenje + gasenje (0%)
   //  6 sekundi ciklus - paljenje + gasenje (30%)
@@ -51,51 +62,58 @@ void setup() {
   //  200Hz - 5ms (200 puta u sekundi)
   //  MaxLedStrength = 100 -> za 200Hz je diodi potrebna jedna sekunda da se upali i ugasi
 
-//  OCR1A = 10000;                // 16000000/(200Hz*8)
-//  TCCR1B |= (1 << WGM12);
-//  TCCR1B |= (1 << CS11);        // Prescaler na 8
-//  TIMSK1 |= (1 << OCIE1A);
-//
-//  sei();
+  OCR1A = 9999;                // 16000000/(200Hz*8)
+  TCCR1B |= (1 << WGM12);
+  TCCR1B |= (1 << CS11);        // Prescaler na 8
+  TIMSK1 |= (1 << OCIE1A);
+  //
+  sei();
 
 }
 
-//ISR(TIMER1_COMPA_vect) {
-//  Serial.println();
-//  Serial.print("Led CNT: ");
-//  Serial.println(ledCnt);
-//  Serial.print("Led Speed: ");
-//  Serial.println(ledSpeed);
-//  Serial.print("Led strength: ");
-//  Serial.println(ledStrength);
-//  Serial.print("Up: ");
-//  Serial.println(up);
-//
-//  if (slaveStatus == WORK) {
-//    if (ledCnt > ledSpeed)
-//      ledCnt = ledSpeed;
-//    if (ledCnt == ledSpeed) {
-//      if (ledStrength > 100) {
-//        up = false;
-//        ledStrength = 100;
-//      }
-//      if (ledStrength < 4) {
-//        up = true;
-//        ledStrength = 0;
-//      }
-//      ledCnt = 0;
-//    }
-//    if (up)
-//      ledStrength++;
-//    else
-//      ledStrength--;
-//    analogWrite(LED, ledStrength);
-//    ledCnt++;
-//  }
-//}
+ISR(TIMER1_COMPA_vect) {
+
+  if (slaveStatus == WORK) {
+//    Serial.println();
+//    Serial.print("Led CNT: ");
+//    Serial.println(ledCnt);
+    //        Serial.print("Led Speed: ");
+    //        Serial.println(ledSpeed);
+    //    Serial.print("Led strength: ");
+    //    Serial.println(ledStrength);
+    //    Serial.print("Up: ");
+    //    Serial.println(up);
+    if (ledCnt > ledSpeed)
+      ledCnt = ledSpeed;
+    if (ledCnt == ledSpeed) {
+      ledCnt = 0;
+      if (ledStrength >= 100) {
+        up = false;
+        ledStrength = 100;
+      }
+      if (ledStrength <= 0) {
+        up = true;
+        ledStrength = 0;
+      }
+      if (up)
+        ledStrength++;
+      else
+        ledStrength--;
+      clamp();
+      //    Serial.print("|");
+      //    Serial.print(ledStrength);
+      //    Serial.println("|");
+      analogWrite(LED, ledStrength);
+    }
+    ledCnt++;
+  }
+  else {
+    ledStrength = 0;
+    analogWrite(LED, ledStrength);
+  }
+}
 
 void loop() {
-
   if (slaveStatus == WORK) {
     //    Serial.print("WORK ");
     percentedNumber++;
@@ -108,32 +126,38 @@ void loop() {
     if (percent > 100) {
       percent = 100;
     }
-    if (percent > 30) {
-      ledSpeed = 6;
-    }
-    if (percent > 50) {
-      ledSpeed = 4;
-    }
-    if (percent > 70) {
-      ledSpeed = 2;
-    }
+
     //    Serial.println();
     //    Serial.print("Percented number: ");
     //    Serial.println(percentedNumber);
-//    int temp = percent;
-//    Serial.print("Percentage: ");
-//    Serial.println(temp);
-    
-    if (percent >= 10.00 && percent <= 10.10 ||percent >= 20.00 && percent <= 20.10 || percent >= 30.00 && percent <= 30.10 
-        || percent >= 40.00 && percent <= 40.10 || percent >= 50.00 && percent <= 50.10 || 
-           percent >= 60.00 && percent <= 60.10 || percent >= 70.00 && percent <= 70.10 || 
-           percent >= 80.00 && percent <= 80.10 || percent >= 90.00 && percent <= 90.10 || percent == 100.00) {
-        Serial.print("Percentage: ");
-        Serial.println((int)percent);
+    //    int temp = percent;
+    //    Serial.print("Percentage: ");
+    //    Serial.println(temp);
+
+    if (percent >= 10.00 && percent <= 10.10 || percent >= 20.00 && percent <= 20.10 || percent >= 30.00 && percent <= 30.10
+        || percent >= 40.00 && percent <= 40.10 || percent >= 50.00 && percent <= 50.10 ||
+        percent >= 60.00 && percent <= 60.10 || percent >= 70.00 && percent <= 70.10 ||
+        percent >= 80.00 && percent <= 80.10 || percent >= 90.00 && percent <= 90.10 || percent == 100.00) {
+      if (percent > 70) {
+        ledSpeed = 2;
+      }
+      else if (percent > 50) {
+        ledSpeed = 4;
+      }
+      else if (percent > 30) {
+        ledSpeed = 6;
+      }
+      else {
+        ledSpeed = 8;
+      }
+      Serial.print("Percentage: ");
+      Serial.println((int)percent);
+      Serial.print("Led speed: ");
+      Serial.println(ledSpeed);
     }
     else {
       delay(5);
-//      Serial.println((int)percent);
+      //      Serial.println((int)percent);
     }
     //    Serial.println();
 
@@ -178,9 +202,9 @@ void loop() {
 void requestEvent() {
   String message = String(slaveStatus);
   Wire.write(message.c_str());
-//  Serial.println("REQUEST");
-//  Serial.print("\t");
-//  Serial.println(message);
+  //  Serial.println("REQUEST");
+  //  Serial.print("\t");
+  //  Serial.println(message);
 
   if (slaveStatus == EMPTY) {
 
